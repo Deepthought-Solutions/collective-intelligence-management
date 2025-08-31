@@ -30,12 +30,17 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ],
-    "deepLinkProtocols": [
-      {
-        "name": "tst-app",
-        "schemes": ["tst-app"]
-      }
     ]
+  },
+    "plugins": {
+    "deep-link": {
+      "mobile": [
+        { "host": "your.website.com", "pathPrefix": ["/open"] },
+        { "host": "another.site.br" }
+      ],
+      "desktop": {
+        "schemes": ["colima"]
+      }
+    }
   }
 }

@@ -1,17 +1,17 @@
-import { UserManager, WebStorageStateStore } from "oidc-client-ts";
-import { open } from "@tauri-apps/plugin-opener";
+import { OidcClient, WebStorageStateStore } from "oidc-client-ts";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 export class OidcService {
-  private userManager: UserManager;
+  private oidcClient: OidcClient;
 
   constructor(issuer: string, clientId: string) {
-    this.userManager = new UserManager({
+    this.oidcClient = new OidcClient({
       authority: issuer,
       client_id: clientId,
-      redirect_uri: "tst-app://auth", // This will be configured in tauri.conf.json
+      redirect_uri: "org.collintl.app://auth", 
+      // https://v2.tauri.app/plugin/deep-linking/#listening-to-deep-links
       response_type: "code",
       scope: "openid profile email",
-      userStore: new WebStorageStateStore({ store: window.localStorage }),
       extraQueryParams: {
         prompt: "login",
       },
@@ -19,12 +19,12 @@ export class OidcService {
   }
 
   public async loginWithAuthorizationCode() {
-    const req = await this.userManager.createSigninRequest();
-    open(req.url);
+    const req = await this.oidcClient.createSigninRequest({});
+    openUrl(req.url);
   }
 
   public async handleRedirect(url: string): Promise<any> {
-    const user = await this.userManager.signinRedirectCallback(url);
+    const user = await this.oidcClient.processSigninResponse(url);
     return user;
   }
 
