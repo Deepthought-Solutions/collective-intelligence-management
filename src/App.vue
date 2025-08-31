@@ -1,51 +1,161 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { invoke } from "@tauri-apps/api/core";
+import { ref, onMounted } from "vue";
+import { OidcService } from "./services/oidc";
+import { listen } from "@tauri-apps/api/event";
 
-const greetMsg = ref("");
-const name = ref("");
+const issuer = ref("https://accounts.google.com");
+const clientId = ref("");
+const clientSecret = ref("");
+const token = ref("");
+const error = ref("");
 
-async function greet() {
-  // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-  greetMsg.value = await invoke("greet", { name: name.value });
+async function loginWithAuthorizationCode() {
+  try {
+    const oidcService = new OidcService(issuer.value, clientId.value);
+    await oidcService.loginWithAuthorizationCode();
+  } catch (e: any) {
+    error.value = e.message;
+  }
 }
+
+async function loginWithClientCredentials() {
+  try {
+    // The token endpoint is usually at a well-known URL relative to the issuer.
+    const tokenEndpoint = `${issuer.value}/.well-known/openid-configuration`;
+    const response = await fetch(tokenEndpoint);
+    const config = await response.json();
+    const tokenUrl = config.token_endpoint;
+
+    const oidcService = new OidcService(issuer.value, clientId.value);
+    const result = await oidcService.loginWithClientCredentials(tokenUrl, clientId.value, clientSecret.value);
+    token.value = JSON.stringify(result, null, 2);
+    error.value = "";
+  } catch (e: any) {
+    error.value = e.message;
+    token.value = "";
+  }
+}
+
+async function handleRedirect(url: string) {
+  const oidcService = new OidcService(issuer.value, clientId.value);
+  try {
+    const user = await oidcService.handleRedirect(url);
+    token.value = JSON.stringify(user, null, 2);
+    error.value = "";
+  } catch (e: any) {
+    error.value = e.message;
+    token.value = "";
+  }
+}
+
+onMounted(() => {
+  listen("deeplink", (event) => {
+    handleRedirect(event.payload as string);
+  });
+});
 </script>
 
 <template>
   <main class="container">
-    <h1>Welcome to Tauri + Vue</h1>
+    <h1>OIDC/OAuth2 Authentication</h1>
 
-    <div class="row">
-      <a href="https://vite.dev" target="_blank">
-        <img src="/vite.svg" class="logo vite" alt="Vite logo" />
-      </a>
-      <a href="https://tauri.app" target="_blank">
-        <img src="/tauri.svg" class="logo tauri" alt="Tauri logo" />
-      </a>
-      <a href="https://vuejs.org/" target="_blank">
-        <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
-      </a>
+    <div class="form-container">
+      <div class="form-group">
+        <label for="issuer">Issuer URL</label>
+        <input id="issuer" v-model="issuer" placeholder="https://issuer.example.com" />
+      </div>
+      <div class="form-group">
+        <label for="clientId">Client ID</label>
+        <input id="clientId" v-model="clientId" placeholder="my-client-id" />
+      </div>
+      <div class="form-group">
+        <label for="clientSecret">Client Secret</label>
+        <input id="clientSecret" v-model="clientSecret" placeholder="my-client-secret" />
+      </div>
+      <div class="form-group">
+        <button @click="loginWithAuthorizationCode">Login with Authorization Code</button>
+        <button @click="loginWithClientCredentials">Login with Client Credentials</button>
+      </div>
     </div>
-    <p>Click on the Tauri, Vite, and Vue logos to learn more.</p>
 
-    <form class="row" @submit.prevent="greet">
-      <input id="greet-input" v-model="name" placeholder="Enter a name..." />
-      <button type="submit">Greet</button>
-    </form>
-    <p>{{ greetMsg }}</p>
+    <div v-if="token" class="token-container">
+      <h2>Authenticated</h2>
+      <pre>{{ token }}</pre>
+    </div>
+    <div v-if="error" class="error-container">
+      <h2>Error</h2>
+      <pre>{{ error }}</pre>
+    </div>
   </main>
 </template>
 
 <style scoped>
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
+.container {
+  padding-top: 2rem;
 }
 
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #249b73);
+.form-container {
+  width: 100%;
+  max-width: 500px;
+  margin: 2rem auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
+.form-group {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.form-group label {
+  margin-bottom: 0.5rem;
+}
+
+.form-group button {
+  margin-top: 1rem;
+}
+
+.token-container {
+  margin-top: 2rem;
+  padding: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+  text-align: left;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+@media (prefers-color-scheme: dark) {
+  .token-container {
+    background-color: #2f2f2f;
+    border-color: #555;
+  }
+}
+
+.error-container {
+  margin-top: 2rem;
+  padding: 1rem;
+  border: 1px solid #ff4d4d;
+  border-radius: 8px;
+  background-color: #fff2f2;
+  color: #ff4d4d;
+  text-align: left;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+@media (prefers-color-scheme: dark) {
+  .error-container {
+    background-color: #4d2626;
+    border-color: #ff4d4d;
+    color: #ffcccc;
+  }
+}
 </style>
+
 <style>
 :root {
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
@@ -69,36 +179,6 @@ async function greet() {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  text-align: center;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
-
-.row {
-  display: flex;
-  justify-content: center;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
-}
-
-h1 {
   text-align: center;
 }
 
@@ -133,10 +213,6 @@ button {
   outline: none;
 }
 
-#greet-input {
-  margin-right: 5px;
-}
-
 @media (prefers-color-scheme: dark) {
   :root {
     color: #f6f6f6;
@@ -156,5 +232,4 @@ button {
     background-color: #0f0f0f69;
   }
 }
-
 </style>
