@@ -31,5 +31,16 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+    "plugins": {
+    "deep-link": {
+      "mobile": [
+        { "host": "your.website.com", "pathPrefix": ["/open"] },
+        { "host": "another.site.br" }
+      ],
+      "desktop": {
+        "schemes": ["colima"]
+      }
+    }
   }
 }
