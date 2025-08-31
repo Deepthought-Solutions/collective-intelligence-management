@@ -27,29 +27,4 @@ export class OidcService {
     const user = await this.oidcClient.processSigninResponse(url);
     return user;
   }
-
-  public async loginWithClientCredentials(
-    tokenEndpoint: string,
-    clientId: string,
-    clientSecret: string
-  ) {
-    const response = await fetch(tokenEndpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        grant_type: "client_credentials",
-        client_id: clientId,
-        client_secret: clientSecret,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to get token from client credentials flow");
-    }
-
-    const data = await response.json();
-    return data;
-  }
 }

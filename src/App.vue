@@ -5,7 +5,6 @@ import { listen } from "@tauri-apps/api/event";
 
 const issuer = ref("https://accounts.google.com");
 const clientId = ref("");
-const clientSecret = ref("");
 const token = ref("");
 const error = ref("");
 
@@ -15,24 +14,6 @@ async function loginWithAuthorizationCode() {
     await oidcService.loginWithAuthorizationCode();
   } catch (e: any) {
     error.value = e.message;
-  }
-}
-
-async function loginWithClientCredentials() {
-  try {
-    // The token endpoint is usually at a well-known URL relative to the issuer.
-    const tokenEndpoint = `${issuer.value}/.well-known/openid-configuration`;
-    const response = await fetch(tokenEndpoint);
-    const config = await response.json();
-    const tokenUrl = config.token_endpoint;
-
-    const oidcService = new OidcService(issuer.value, clientId.value);
-    const result = await oidcService.loginWithClientCredentials(tokenUrl, clientId.value, clientSecret.value);
-    token.value = JSON.stringify(result, null, 2);
-    error.value = "";
-  } catch (e: any) {
-    error.value = e.message;
-    token.value = "";
   }
 }
 
@@ -69,12 +50,7 @@ onMounted(() => {
         <input id="clientId" v-model="clientId" placeholder="my-client-id" />
       </div>
       <div class="form-group">
-        <label for="clientSecret">Client Secret</label>
-        <input id="clientSecret" v-model="clientSecret" placeholder="my-client-secret" />
-      </div>
-      <div class="form-group">
         <button @click="loginWithAuthorizationCode">Login with Authorization Code</button>
-        <button @click="loginWithClientCredentials">Login with Client Credentials</button>
       </div>
     </div>
 

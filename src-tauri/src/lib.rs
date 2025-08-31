@@ -1,3 +1,4 @@
+use tauri::Emitter;
 use tauri_plugin_deep_link::DeepLinkExt;
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -12,9 +13,12 @@ pub fn run() {
 
     #[cfg(desktop)]
     {
-        builder = builder.plugin(tauri_plugin_single_instance::init(|_app, argv, _cwd| {
-          println!("a new app instance was opened with {argv:?} and the deep link event was already triggered");
-          // when defining deep link schemes at runtime, you must also check `argv` here
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+          for arg in argv {
+            if let Some(url) = arg.strip_prefix("org.collintl.app://") {
+              app.emit("deeplink", format!("org.collintl.app://{}", url)).unwrap();
+            }
+          }
         }));
     }
 
